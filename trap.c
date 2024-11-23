@@ -6,7 +6,10 @@
 #include "proc.h"
 #include "x86.h"
 #include "traps.h"
+#include "fs.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "file.h"
 #include "wmap.h"
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -96,7 +99,7 @@ trap(struct trapframe *tf)
           break;
         }
         memset(mem, 0, PGSIZE);
-
+        mmap->n_loaded_pages++;
         // Map the physical page to the faulting virtual address
         if (mappages(p->pgdir, (void *)aligned_addr, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
           kfree(mem);
@@ -104,7 +107,17 @@ trap(struct trapframe *tf)
           p->killed = 1;
           break;
         }
-
+        if(!(mmap->flags & MAP_ANONYMOUS)){
+            uint file_offset =aligned_addr-mmap->addr;
+            uint bytes_remaining=mmap->addr+mmap->length-aligned_addr;//
+            struct file *f =  p->ofile[mmap->fd];
+                begin_op();
+                ilock(f->ip);
+                readi(f->ip, (void*)aligned_addr, file_offset, bytes_remaining);
+                iunlock(f->ip);
+                end_op();
+        }
+    
         return; // Successfully handled the page fault
       }
     }
