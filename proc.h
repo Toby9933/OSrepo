@@ -39,6 +39,7 @@ struct mmap_region {
   int length;    // Length of the mapping (in bytes)
   int flags;      // Flags for the mapping (e.g., MAP_SHARED, MAP_ANONYMOUS)
   int fd;         // File descriptor (if file-backed); -1 for anonymous mappings
+  int n_loaded_pages;
 };
 // Per-process state
 struct proc {
